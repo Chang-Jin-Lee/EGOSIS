@@ -32,11 +32,13 @@
   - `Shadow Intensity` (머티리얼별 그림자 영향)
   - `Toon Ramp Intensity` (ToonPBREditable 어두운 밴드 완화)
   - `Toon Self Shadow` (자체 음영 강도)
+  - 수치 편집은 Drag + 더블클릭 직접 입력(정밀 값 입력) 지원
 - 그림자 품질
   - `Shadow Map Size`
   - `Shadow PCF Radius`
 - 주광 방향 입력 개선
-  - `Yaw / Pitch / Roll` 드래그 + 숫자 직접 입력
+  - `Yaw / Pitch` 드래그 + 숫자 직접 입력
+  - `Roll` 항목은 제거됨 (주광 방향 벡터 제어에 불필요)
 
 ### LightingPanel 최신 동작
 
@@ -325,3 +327,5 @@
 - override를 켜지 않으면 볼륨 블렌딩에 영향 없음
 - 영향 범위는 톤매핑 포스트프로세스 단계로 제한
 - 물리, 애니메이션 평가, 게임플레이 dt 경로에는 영향 없음
+- 주광 회전 UI를 `Yaw/Pitch` 2축 기준으로 최신화 (`Roll` 제거)
+- Inspector 수치 입력 방식(더블클릭 정밀 입력) 반영

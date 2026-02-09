@@ -138,7 +138,10 @@ Engine/src/Editor
 - **Project**: Asset 디렉터리/파일 트리
   - `Preload.json` 더블클릭 시 전용 에디터 오픈
   - 우클릭 메뉴에 `Create Preload.json` 추가
-- **Game**: 뷰포트, 기즈모, 픽킹, 스냅/드롭
+- **Game**: 뷰포트, 기즈모, 픽킹, 스냅/드롭, 에디터 프리캠 단축키
+  - `F` 키: 현재 선택 오브젝트 앞으로 카메라 포커스 이동
+  - 동작 조건: **Editor 모드 + 재생 중 아님(Stopped)**, 선택 엔티티가 유효할 때만
+  - 선택 오브젝트가 삭제된 상태면 선택값을 정리하고 이동하지 않음
 - **Camera**: 카메라 설정 + 스키닝 애니메이션 제어 탭
 - **Lighting**: 조명 파라미터, 스카이박스, PBR 설정  
   (Post‑Process/Bloom은 **PostProcessVolume**에서만 설정)
