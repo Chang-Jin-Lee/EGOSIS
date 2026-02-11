@@ -189,6 +189,8 @@ namespace Alice
             DirectX::XMFLOAT4 toonPbrAlphas { 1.0f, 1.0f, 1.0f, 0.0f };
             float toonPbrRampIntensity = 0.0f;
             float toonSelfShadowStrength = 1.0f;
+            DirectX::XMFLOAT4 toonSelfCuts { 0.2f, 0.5f, 0.95f, 0.0f };
+            DirectX::XMFLOAT4 toonSelfLevels { 0.1f, 0.4f, 0.7f, 0.35f };
             int shadingMode = 0;
             int useTexture = 0;
             int enableNormalMap = 0;
@@ -229,6 +231,13 @@ namespace Alice
                 if (toonPbrAlphas.w != rhs.toonPbrAlphas.w) return toonPbrAlphas.w < rhs.toonPbrAlphas.w;
                 if (toonPbrRampIntensity != rhs.toonPbrRampIntensity) return toonPbrRampIntensity < rhs.toonPbrRampIntensity;
                 if (toonSelfShadowStrength != rhs.toonSelfShadowStrength) return toonSelfShadowStrength < rhs.toonSelfShadowStrength;
+                if (toonSelfCuts.x != rhs.toonSelfCuts.x) return toonSelfCuts.x < rhs.toonSelfCuts.x;
+                if (toonSelfCuts.y != rhs.toonSelfCuts.y) return toonSelfCuts.y < rhs.toonSelfCuts.y;
+                if (toonSelfCuts.z != rhs.toonSelfCuts.z) return toonSelfCuts.z < rhs.toonSelfCuts.z;
+                if (toonSelfLevels.x != rhs.toonSelfLevels.x) return toonSelfLevels.x < rhs.toonSelfLevels.x;
+                if (toonSelfLevels.y != rhs.toonSelfLevels.y) return toonSelfLevels.y < rhs.toonSelfLevels.y;
+                if (toonSelfLevels.z != rhs.toonSelfLevels.z) return toonSelfLevels.z < rhs.toonSelfLevels.z;
+                if (toonSelfLevels.w != rhs.toonSelfLevels.w) return toonSelfLevels.w < rhs.toonSelfLevels.w;
                 if (shadingMode != rhs.shadingMode) return shadingMode < rhs.shadingMode;
                 if (useTexture != rhs.useTexture) return useTexture < rhs.useTexture;
                 if (enableNormalMap != rhs.enableNormalMap) return enableNormalMap < rhs.enableNormalMap;
@@ -271,6 +280,13 @@ namespace Alice
             if (a.toonPbrAlphas.w != b.toonPbrAlphas.w) return false;
             if (a.toonPbrRampIntensity != b.toonPbrRampIntensity) return false;
             if (a.toonSelfShadowStrength != b.toonSelfShadowStrength) return false;
+            if (a.toonSelfCuts.x != b.toonSelfCuts.x) return false;
+            if (a.toonSelfCuts.y != b.toonSelfCuts.y) return false;
+            if (a.toonSelfCuts.z != b.toonSelfCuts.z) return false;
+            if (a.toonSelfLevels.x != b.toonSelfLevels.x) return false;
+            if (a.toonSelfLevels.y != b.toonSelfLevels.y) return false;
+            if (a.toonSelfLevels.z != b.toonSelfLevels.z) return false;
+            if (a.toonSelfLevels.w != b.toonSelfLevels.w) return false;
             if (a.shadingMode != b.shadingMode) return false;
             if (a.useTexture != b.useTexture) return false;
             if (a.enableNormalMap != b.enableNormalMap) return false;
@@ -290,6 +306,16 @@ namespace Alice
         inline DirectX::XMFLOAT4 DefaultToonPbrAlphas()
         {
             return DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+        }
+
+        inline DirectX::XMFLOAT4 DefaultToonSelfCuts()
+        {
+            return DirectX::XMFLOAT4(0.2f, 0.5f, 0.95f, 0.0f);
+        }
+
+        inline DirectX::XMFLOAT4 DefaultToonSelfLevels()
+        {
+            return DirectX::XMFLOAT4(0.1f, 0.4f, 0.7f, 0.35f);
         }
 
         // 인스턴스 월드 행렬(3x4) 생성용 헬퍼
@@ -636,6 +662,7 @@ namespace Alice
             DXGI_FORMAT_R16G16B16A16_UNORM,  // 3: ToonParams (Strength/Levels/Env 2x8 packed)
             DXGI_FORMAT_R8G8B8A8_UNORM,      // 4: ToonAlphas (level1~3 alpha)
             DXGI_FORMAT_R16G16B16A16_FLOAT,  // 5: OutlineData (rgb=color, a=width)
+            DXGI_FORMAT_R16G16B16A16_UNORM,  // 6: ToonSelfParams (self cuts/levels/blur 2x8 packed)
         };
 
         // 각 G-Buffer 텍스처 생성
@@ -730,6 +757,7 @@ namespace Alice
             DXGI_FORMAT_R16G16B16A16_UNORM,  // 3: ToonParams (Strength/Levels/Env 2x8 packed)
             DXGI_FORMAT_R8G8B8A8_UNORM,      // 4: ToonAlphas (level1~3 alpha)
             DXGI_FORMAT_R16G16B16A16_FLOAT,  // 5: OutlineData (rgb=color, a=width)
+            DXGI_FORMAT_R16G16B16A16_UNORM,  // 6: ToonSelfParams (self cuts/levels/blur 2x8 packed)
         };
 
         for (int i = 0; i < GBufferCount; ++i)
@@ -2445,7 +2473,7 @@ namespace Alice
 
                 UpdatePerObjectCB(worldM, lightView, lightProj, XMFLOAT4(1, 1, 1, 1), 1.0f, 0.0f, 1.0f, false, false, 0,
                                   1.0f, DefaultToonPbrCuts(), DefaultToonPbrLevels(), DefaultToonPbrAlphas(),
-                                  0.0f, 1.0f, 1.0f, 1.0f,
+                                  0.0f, 1.0f, DefaultToonSelfCuts(), DefaultToonSelfLevels(), 1.0f, 1.0f,
                                   XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
                 m_context->DrawIndexed(m_cubeIndexCount, 0, 0);
             }
@@ -2492,7 +2520,7 @@ namespace Alice
 
                                 UpdatePerObjectCB(DirectX::XMMatrixIdentity(), lightView, lightProj, XMFLOAT4(1, 1, 1, 1), 1.0f, 0.0f, 1.0f, false, false, 0,
                                                   1.0f, DefaultToonPbrCuts(), DefaultToonPbrLevels(), DefaultToonPbrAlphas(),
-                                                  0.0f, 1.0f, 1.0f, 1.0f,
+                                                  0.0f, 1.0f, DefaultToonSelfCuts(), DefaultToonSelfLevels(), 1.0f, 1.0f,
                                                   XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
                                 m_context->DrawIndexedInstanced(currentKey.indexCount, (UINT)batchInstances.size(),
                                                                 currentKey.startIndex, currentKey.baseVertex, 0);
@@ -2525,7 +2553,7 @@ namespace Alice
 
                         UpdatePerObjectCB(DirectX::XMMatrixIdentity(), lightView, lightProj, XMFLOAT4(1, 1, 1, 1), 1.0f, 0.0f, 1.0f, false, false, 0,
                                           1.0f, DefaultToonPbrCuts(), DefaultToonPbrLevels(), DefaultToonPbrAlphas(),
-                                          0.0f, 1.0f, 1.0f, 1.0f,
+                                          0.0f, 1.0f, DefaultToonSelfCuts(), DefaultToonSelfLevels(), 1.0f, 1.0f,
                                           XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
                         m_context->DrawIndexedInstanced(currentKey.indexCount, (UINT)batchInstances.size(),
                                                         currentKey.startIndex, currentKey.baseVertex, 0);
@@ -2626,7 +2654,7 @@ namespace Alice
                 UpdateBonesCB(cmd.bones, cmd.boneCount);
                 UpdatePerObjectCB(cmd.world, lightView, lightProj, XMFLOAT4(1, 1, 1, 1), 1.0f, 0.0f, 1.0f, false, false, 0,
                                   1.0f, DefaultToonPbrCuts(), DefaultToonPbrLevels(), DefaultToonPbrAlphas(),
-                                  0.0f, 1.0f, 1.0f, 1.0f, XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
+                                  0.0f, 1.0f, DefaultToonSelfCuts(), DefaultToonSelfLevels(), 1.0f, 1.0f, XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
                 m_context->DrawIndexed(cmd.indexCount, cmd.startIndex, cmd.baseVertex);
             }
 
@@ -2677,7 +2705,7 @@ namespace Alice
                                 // CB는 배치 단위로 1회만 갱신
                                 UpdatePerObjectCB(DirectX::XMMatrixIdentity(), lightView, lightProj, XMFLOAT4(1, 1, 1, 1), 1.0f, 0.0f, 1.0f, false, false, 0,
                                                   1.0f, DefaultToonPbrCuts(), DefaultToonPbrLevels(), DefaultToonPbrAlphas(),
-                                                  0.0f, 1.0f, 1.0f, 1.0f,
+                                                  0.0f, 1.0f, DefaultToonSelfCuts(), DefaultToonSelfLevels(), 1.0f, 1.0f,
                                                   XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
 
                                 m_context->DrawIndexedInstanced(currentKey.indexCount, (UINT)batchInstances.size(), currentKey.startIndex, currentKey.baseVertex, 0);
@@ -2711,7 +2739,7 @@ namespace Alice
 
                         UpdatePerObjectCB(DirectX::XMMatrixIdentity(), lightView, lightProj, XMFLOAT4(1, 1, 1, 1), 1.0f, 0.0f, 1.0f, false, false, 0,
                                           1.0f, DefaultToonPbrCuts(), DefaultToonPbrLevels(), DefaultToonPbrAlphas(),
-                                          0.0f, 1.0f, 1.0f, 1.0f, XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
+                                          0.0f, 1.0f, DefaultToonSelfCuts(), DefaultToonSelfLevels(), 1.0f, 1.0f, XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
 
                         m_context->DrawIndexedInstanced(currentKey.indexCount, (UINT)batchInstances.size(), currentKey.startIndex, currentKey.baseVertex, 0);
                     }
@@ -2910,7 +2938,7 @@ namespace Alice
 
                     UpdatePerObjectCB(worldM, lightView, lightProj, XMFLOAT4(1, 1, 1, 1), 1.0f, 0.0f, 1.0f, false, false, 0,
                                       1.0f, DefaultToonPbrCuts(), DefaultToonPbrLevels(), DefaultToonPbrAlphas(),
-                                      0.0f, 1.0f, 1.0f, 1.0f, XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
+                                      0.0f, 1.0f, DefaultToonSelfCuts(), DefaultToonSelfLevels(), 1.0f, 1.0f, XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
                     m_context->DrawIndexed(m_cubeIndexCount, 0, 0);
                 }
             }
@@ -2946,7 +2974,7 @@ namespace Alice
                     UpdateBonesCB(cmd.bones, cmd.boneCount);
                     UpdatePerObjectCB(cmd.world, lightView, lightProj, XMFLOAT4(1, 1, 1, 1), 1.0f, 0.0f, 1.0f, false, false, 0,
                                       1.0f, DefaultToonPbrCuts(), DefaultToonPbrLevels(), DefaultToonPbrAlphas(),
-                                      0.0f, 1.0f, 1.0f, 1.0f, XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
+                                      0.0f, 1.0f, DefaultToonSelfCuts(), DefaultToonSelfLevels(), 1.0f, 1.0f, XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
                     m_context->DrawIndexed(cmd.indexCount, cmd.startIndex, cmd.baseVertex);
                 }
             }
@@ -3605,6 +3633,7 @@ namespace Alice
         m_context->ClearRenderTargetView(m_gBufferRTVs[3].Get(), clearColor);  // ToonParams
         m_context->ClearRenderTargetView(m_gBufferRTVs[4].Get(), clearColor);  // ToonAlphas
         m_context->ClearRenderTargetView(m_gBufferRTVs[5].Get(), clearColor);  // OutlineData
+        m_context->ClearRenderTargetView(m_gBufferRTVs[6].Get(), clearColor);  // ToonSelfParams
         m_context->ClearDepthStencilView(m_sceneDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
         // G-Buffer 렌더 타겟 설정
@@ -3614,7 +3643,8 @@ namespace Alice
             m_gBufferRTVs[2].Get(),
             m_gBufferRTVs[3].Get(),
             m_gBufferRTVs[4].Get(),
-            m_gBufferRTVs[5].Get()
+            m_gBufferRTVs[5].Get(),
+            m_gBufferRTVs[6].Get()
         };
         m_context->OMSetRenderTargets(GBufferCount, rtvs, m_sceneDSV.Get());
         m_context->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
@@ -3702,6 +3732,8 @@ namespace Alice
             XMFLOAT4 toonAlphas = DefaultToonPbrAlphas();
             float toonRampIntensity = 0.0f;
             float toonSelfShadowStrength = 1.0f;
+            XMFLOAT4 toonSelfCuts = DefaultToonSelfCuts();
+            XMFLOAT4 toonSelfLevels = DefaultToonSelfLevels();
             int objectShadingMode = shadingMode;
             if (mat) {
                 color = { mat->color.x, mat->color.y, mat->color.z, mat->alpha };
@@ -3720,6 +3752,8 @@ namespace Alice
                 toonAlphas = XMFLOAT4(mat->toonPbrLevel1Alpha, mat->toonPbrLevel2Alpha, mat->toonPbrLevel3Alpha, mat->shadowStrength);
                 toonRampIntensity = mat->toonPbrRampIntensity;
                 toonSelfShadowStrength = mat->toonSelfShadowStrength;
+                toonSelfCuts = XMFLOAT4(mat->toonSelfCut1, mat->toonSelfCut2, mat->toonSelfCut3, 0.0f);
+                toonSelfLevels = XMFLOAT4(mat->toonSelfLevel1, mat->toonSelfLevel2, mat->toonSelfLevel3, mat->toonSelfBlurWidth);
                 if (mat->shadingMode >= 0) objectShadingMode = mat->shadingMode;
                 if (!mat->albedoTexturePath.empty()) {
                     texSRV = GetOrCreateTexture(mat->albedoTexturePath);
@@ -3755,6 +3789,8 @@ namespace Alice
                 item.key.toonPbrAlphas = toonAlphas;
                 item.key.toonPbrRampIntensity = toonRampIntensity;
                 item.key.toonSelfShadowStrength = toonSelfShadowStrength;
+                item.key.toonSelfCuts = toonSelfCuts;
+                item.key.toonSelfLevels = toonSelfLevels;
                 item.key.shadingMode = objectShadingMode;
                 item.key.useTexture = useTex ? 1 : 0;
                 item.key.enableNormalMap = 0;
@@ -3771,6 +3807,7 @@ namespace Alice
             // Pass 1. 원본 물체 + 아웃라인 메타데이터 기록
             UpdatePerObjectCB(worldM, view, proj, color, rough, metal, ao, useTex, false,
                               objectShadingMode, normalStrength, toonCuts, toonLevels, toonAlphas, toonRampIntensity, toonSelfShadowStrength,
+                              toonSelfCuts, toonSelfLevels,
                               envDiffuseStrength, envSpecularStrength,
                               outlineColor, outlineWidth);
             m_context->DrawIndexed(m_cubeIndexCount, 0, 0);
@@ -3820,6 +3857,7 @@ namespace Alice
                                               (currentKey.useTexture != 0), (currentKey.enableNormalMap != 0),
                                               currentKey.shadingMode, currentKey.normalStrength,
                                               currentKey.toonPbrCuts, currentKey.toonPbrLevels, currentKey.toonPbrAlphas, currentKey.toonPbrRampIntensity, currentKey.toonSelfShadowStrength,
+                                              currentKey.toonSelfCuts, currentKey.toonSelfLevels,
                                               currentKey.envDiffuseStrength, currentKey.envSpecularStrength,
                                               DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
 
@@ -3857,6 +3895,7 @@ namespace Alice
                                       (currentKey.useTexture != 0), (currentKey.enableNormalMap != 0),
                                       currentKey.shadingMode, currentKey.normalStrength,
                                       currentKey.toonPbrCuts, currentKey.toonPbrLevels, currentKey.toonPbrAlphas, currentKey.toonPbrRampIntensity, currentKey.toonSelfShadowStrength,
+                                      currentKey.toonSelfCuts, currentKey.toonSelfLevels,
                                       currentKey.envDiffuseStrength, currentKey.envSpecularStrength,
                                       DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
 
@@ -3947,6 +3986,8 @@ namespace Alice
                             item.key.toonPbrAlphas = cmd.toonPbrAlphas;
                             item.key.toonPbrRampIntensity = cmd.toonPbrRampIntensity;
                             item.key.toonSelfShadowStrength = cmd.toonSelfShadowStrength;
+                            item.key.toonSelfCuts = cmd.toonSelfCuts;
+                            item.key.toonSelfLevels = cmd.toonSelfLevels;
                             item.key.shadingMode = objectShadingMode;
                             item.key.useTexture = (diff != nullptr) ? 1 : 0;
                             item.key.enableNormalMap = (norm != nullptr) ? 1 : 0;
@@ -3981,6 +4022,8 @@ namespace Alice
                         item.key.toonPbrAlphas = cmd.toonPbrAlphas;
                         item.key.toonPbrRampIntensity = cmd.toonPbrRampIntensity;
                         item.key.toonSelfShadowStrength = cmd.toonSelfShadowStrength;
+                        item.key.toonSelfCuts = cmd.toonSelfCuts;
+                        item.key.toonSelfLevels = cmd.toonSelfLevels;
                         item.key.shadingMode = objectShadingMode;
                         item.key.useTexture = (diff != nullptr) ? 1 : 0;
                         item.key.enableNormalMap = 0;
@@ -4017,6 +4060,7 @@ namespace Alice
                         UpdatePerObjectCB(cmd.world, view, proj, color, cmd.roughness, cmd.metalness, ao,
                                           (diff != nullptr), (norm != nullptr), objectShadingMode, 
                                           cmd.normalStrength, cmd.toonPbrCuts, cmd.toonPbrLevels, cmd.toonPbrAlphas, cmd.toonPbrRampIntensity, cmd.toonSelfShadowStrength,
+                                          cmd.toonSelfCuts, cmd.toonSelfLevels,
                                           cmd.envDiffuseStrength, cmd.envSpecularStrength,
                                           cmd.outlineColor, cmd.outlineWidth);
                         m_context->DrawIndexed(sub.indexCount, sub.startIndex, cmd.baseVertex);
@@ -4033,6 +4077,7 @@ namespace Alice
                     UpdatePerObjectCB(cmd.world, view, proj, color, cmd.roughness, cmd.metalness, ao,
                                       (diff != nullptr), false, objectShadingMode, 
                                       cmd.normalStrength, cmd.toonPbrCuts, cmd.toonPbrLevels, cmd.toonPbrAlphas, cmd.toonPbrRampIntensity, cmd.toonSelfShadowStrength,
+                                      cmd.toonSelfCuts, cmd.toonSelfLevels,
                                       cmd.envDiffuseStrength, cmd.envSpecularStrength,
                                       cmd.outlineColor, cmd.outlineWidth);
                     m_context->DrawIndexed(cmd.indexCount, cmd.startIndex, cmd.baseVertex);
@@ -4082,6 +4127,7 @@ namespace Alice
                                                   (currentKey.useTexture != 0), (currentKey.enableNormalMap != 0),
                                                   currentKey.shadingMode, currentKey.normalStrength,
                                                   currentKey.toonPbrCuts, currentKey.toonPbrLevels, currentKey.toonPbrAlphas, currentKey.toonPbrRampIntensity, currentKey.toonSelfShadowStrength,
+                                                  currentKey.toonSelfCuts, currentKey.toonSelfLevels,
                                                   currentKey.envDiffuseStrength, currentKey.envSpecularStrength,
                                                   DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
 
@@ -4119,6 +4165,7 @@ namespace Alice
                                           (currentKey.useTexture != 0), (currentKey.enableNormalMap != 0),
                                           currentKey.shadingMode, currentKey.normalStrength,
                                           currentKey.toonPbrCuts, currentKey.toonPbrLevels, currentKey.toonPbrAlphas, currentKey.toonPbrRampIntensity, currentKey.toonSelfShadowStrength,
+                                          currentKey.toonSelfCuts, currentKey.toonSelfLevels,
                                           currentKey.envDiffuseStrength, currentKey.envSpecularStrength,
                                           DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
 
@@ -4228,7 +4275,7 @@ namespace Alice
                                               (diff != nullptr), (norm != nullptr),
                                               shadingMode,
                                               1.0f, DefaultToonPbrCuts(), DefaultToonPbrLevels(), DefaultToonPbrAlphas(), 0.0f, 1.0f,
-                                              1.0f, 1.0f,
+                                              DefaultToonSelfCuts(), DefaultToonSelfLevels(), 1.0f, 1.0f,
                                               DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
 
                             m_context->DrawIndexed(sub.indexCount, sub.startIndex, cameraMesh->baseVertex);
@@ -4243,7 +4290,7 @@ namespace Alice
                                           0.5f, 0.0f, m_lightingParameters.ambientOcclusion,
                                           false, false, shadingMode,
                                           1.0f, DefaultToonPbrCuts(), DefaultToonPbrLevels(), DefaultToonPbrAlphas(), 0.0f, 1.0f,
-                                          1.0f, 1.0f,
+                                          DefaultToonSelfCuts(), DefaultToonSelfLevels(), 1.0f, 1.0f,
                                           DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
 
                         m_context->DrawIndexed(cameraMesh->indexCount, cameraMesh->startIndex, cameraMesh->baseVertex);
@@ -4435,6 +4482,9 @@ namespace Alice
             m_localPointShadowSRV.Get() // Local Point Shadow CubeArray
         };
         m_context->PSSetShaderResources(0, static_cast<UINT>(srvs.size()), srvs.data());
+        // g_ToonSelfParams는 t14를 사용하므로 별도 슬롯 바인딩이 필요합니다.
+        ID3D11ShaderResourceView* toonSelfSrv = m_gBufferSRVs[6].Get();
+        m_context->PSSetShaderResources(14, 1, &toonSelfSrv);
 
         // 샘플러 설정
         ID3D11SamplerState* samplers[] = { m_samplerState.Get(), m_shadowSampler.Get(), m_samplerLinear.Get() };
@@ -4528,8 +4578,8 @@ namespace Alice
         m_context->DrawIndexed(m_quadIndexCount, 0, 0);
 
         // 리소스 해제
-        ID3D11ShaderResourceView* nullSRVs[14] = { nullptr };
-        m_context->PSSetShaderResources(0, 14, nullSRVs);
+        ID3D11ShaderResourceView* nullSRVs[15] = { nullptr };
+        m_context->PSSetShaderResources(0, 15, nullSRVs);
     }
 
     void DeferredRenderSystem::PassTransparentForward(
@@ -4692,6 +4742,8 @@ namespace Alice
                 key.toonPbrAlphas = cmd.toonPbrAlphas;
                 key.toonPbrRampIntensity = cmd.toonPbrRampIntensity;
                 key.toonSelfShadowStrength = cmd.toonSelfShadowStrength;
+                key.toonSelfCuts = cmd.toonSelfCuts;
+                key.toonSelfLevels = cmd.toonSelfLevels;
                 key.shadingMode = objectShadingMode;
                 key.useTexture = (diff != nullptr) ? 1 : 0;
                 key.enableNormalMap = (norm != nullptr) ? 1 : 0;
@@ -4725,6 +4777,7 @@ namespace Alice
                                           (batchKey.useTexture != 0), (batchKey.enableNormalMap != 0),
                                           batchKey.shadingMode, batchKey.normalStrength,
                                           batchKey.toonPbrCuts, batchKey.toonPbrLevels, batchKey.toonPbrAlphas, batchKey.toonPbrRampIntensity, batchKey.toonSelfShadowStrength,
+                                          batchKey.toonSelfCuts, batchKey.toonSelfLevels,
                                           batchKey.envDiffuseStrength, batchKey.envSpecularStrength,
                                           DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
 
@@ -4779,6 +4832,7 @@ namespace Alice
                                       (batchKey.useTexture != 0), (batchKey.enableNormalMap != 0),
                                       batchKey.shadingMode, batchKey.normalStrength,
                                       batchKey.toonPbrCuts, batchKey.toonPbrLevels, batchKey.toonPbrAlphas, batchKey.toonPbrRampIntensity, batchKey.toonSelfShadowStrength,
+                                      batchKey.toonSelfCuts, batchKey.toonSelfLevels,
                                       batchKey.envDiffuseStrength, batchKey.envSpecularStrength,
                                       DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
 
@@ -4822,6 +4876,7 @@ namespace Alice
                     UpdatePerObjectCB(cmd.world, view, proj, color, cmd.roughness, cmd.metalness, ao,
                                       (diff != nullptr), (norm != nullptr), objectShadingMode,
                                       cmd.normalStrength, cmd.toonPbrCuts, cmd.toonPbrLevels, cmd.toonPbrAlphas, cmd.toonPbrRampIntensity, cmd.toonSelfShadowStrength,
+                                      cmd.toonSelfCuts, cmd.toonSelfLevels,
                                       cmd.envDiffuseStrength, cmd.envSpecularStrength,
                                       outlineColor, 0.0f);
                     m_context->DrawIndexed(sub.indexCount, sub.startIndex, cmd.baseVertex);
@@ -4833,6 +4888,7 @@ namespace Alice
                         UpdatePerObjectCB(cmd.world, view, proj, color, cmd.roughness, cmd.metalness, ao,
                                           (diff != nullptr), (norm != nullptr), objectShadingMode,
                                           cmd.normalStrength, cmd.toonPbrCuts, cmd.toonPbrLevels, cmd.toonPbrAlphas, cmd.toonPbrRampIntensity, cmd.toonSelfShadowStrength,
+                                          cmd.toonSelfCuts, cmd.toonSelfLevels,
                                           cmd.envDiffuseStrength, cmd.envSpecularStrength,
                                           outlineColor, outlineWidth);
                         m_context->DrawIndexed(sub.indexCount, sub.startIndex, cmd.baseVertex);
@@ -4850,6 +4906,7 @@ namespace Alice
                 UpdatePerObjectCB(cmd.world, view, proj, color, cmd.roughness, cmd.metalness, ao,
                                   (diff != nullptr), false, objectShadingMode,
                                   cmd.normalStrength, cmd.toonPbrCuts, cmd.toonPbrLevels, cmd.toonPbrAlphas, cmd.toonPbrRampIntensity, cmd.toonSelfShadowStrength,
+                                  cmd.toonSelfCuts, cmd.toonSelfLevels,
                                   cmd.envDiffuseStrength, cmd.envSpecularStrength,
                                   outlineColor, 0.0f);
                 m_context->DrawIndexed(cmd.indexCount, cmd.startIndex, cmd.baseVertex);
@@ -4861,6 +4918,7 @@ namespace Alice
                     UpdatePerObjectCB(cmd.world, view, proj, color, cmd.roughness, cmd.metalness, ao,
                                       (diff != nullptr), false, objectShadingMode,
                                       cmd.normalStrength, cmd.toonPbrCuts, cmd.toonPbrLevels, cmd.toonPbrAlphas, cmd.toonPbrRampIntensity, cmd.toonSelfShadowStrength,
+                                      cmd.toonSelfCuts, cmd.toonSelfLevels,
                                       cmd.envDiffuseStrength, cmd.envSpecularStrength,
                                       outlineColor, outlineWidth);
                     m_context->DrawIndexed(cmd.indexCount, cmd.startIndex, cmd.baseVertex);
@@ -4898,6 +4956,7 @@ namespace Alice
                                   (batchKey.useTexture != 0), (batchKey.enableNormalMap != 0),
                                   batchKey.shadingMode, batchKey.normalStrength,
                                   batchKey.toonPbrCuts, batchKey.toonPbrLevels, batchKey.toonPbrAlphas, batchKey.toonPbrRampIntensity, batchKey.toonSelfShadowStrength,
+                                  batchKey.toonSelfCuts, batchKey.toonSelfLevels,
                                   batchKey.envDiffuseStrength, batchKey.envSpecularStrength,
                                   DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f), 0.0f);
 
@@ -4995,11 +5054,11 @@ namespace Alice
         D3D11_MAPPED_SUBRESOURCE mapped;
         if (SUCCEEDED(m_context->Map(m_cbPerObject.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
         {
-            XMMATRIX* data = (XMMATRIX*)mapped.pData;
-            data[0] = XMMatrixTranspose(world);
-            data[1] = XMMatrixTranspose(view);
-            data[2] = XMMatrixTranspose(projection);
-            data[3] = XMMatrixTranspose(XMMatrixInverse(nullptr, world));
+            CBPerObject data{};
+            data.world = XMMatrixTranspose(world);
+            data.view = XMMatrixTranspose(view);
+            data.projection = XMMatrixTranspose(projection);
+            std::memcpy(mapped.pData, &data, sizeof(CBPerObject));
             m_context->Unmap(m_cbPerObject.Get(), 0);
         }
 
@@ -5022,69 +5081,48 @@ namespace Alice
                                                  const DirectX::XMFLOAT4& toonPbrAlphas,
                                                  float toonPbrRampIntensity,
                                                  float toonSelfShadowStrength,
+                                                 const DirectX::XMFLOAT4& toonSelfCuts,
+                                                 const DirectX::XMFLOAT4& toonSelfLevels,
                                                  float envDiffuseStrength,
                                                  float envSpecularStrength,
                                                  const XMFLOAT3& outlineColor,
                                                  float outlineWidth)
     {
-		struct CBPerObjectData
-		{
-			XMMATRIX gWorld;
-			XMMATRIX gView;
-			XMMATRIX gProj;
-			XMFLOAT4 gMaterialColor;
-			float    gRoughness;
-			float    gMetalness;
-			int      gUseTexture;
-			int      gEnableNormalMap;
-			int      gShadingMode;
-			int      gPad0;
-			// [Fixed] HLSL 패킹 규칙에 맞춰 8바이트 패딩 추가
-			float    gPad1[2];        // Offset: 232 -> 240
-			// 노말맵 강도 조절
-			float    gNormalStrength; // Offset: 240 -> 244
-			float    gAmbientOcclusion; // Offset: 244 -> 248
-			float    gEnvDiffuseStrength; // Offset: 248 -> 252
-			float    gEnvSpecularStrength; // Offset: 252 -> 256
-			XMFLOAT4 gToonPbrCuts;    // Offset: 256 -> 272
-			XMFLOAT4 gToonPbrLevels;  // Offset: 272 -> 288
-			XMFLOAT4 gToonPbrAlphas;  // Offset: 288 -> 304
-			float    gToonPbrRampIntensity; // Offset: 304 -> 308
-			float    gToonSelfShadowStrength; // Offset: 308 -> 312
-			float gPadOutline[2];     // Offset: 312 -> 320
-			XMFLOAT3 gOutlineColor;   // Offset: 320 -> 332
-			float    gOutlineWidth;   // Offset: 332 -> 336
-		};
+        static_assert((sizeof(CBPerObject) % 16) == 0, "CBPerObject must be 16-byte aligned.");
 
         D3D11_MAPPED_SUBRESOURCE mapped;
         if (SUCCEEDED(m_context->Map(m_cbPerObject.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
         {
-            CBPerObjectData* data = (CBPerObjectData*)mapped.pData;
-            data->gWorld = XMMatrixTranspose(world);
-            data->gView  = XMMatrixTranspose(view);
-            data->gProj  = XMMatrixTranspose(projection);
-            data->gMaterialColor = color;
-            data->gRoughness = roughness;
-            data->gMetalness = metalness;
-            data->gUseTexture = useTexture ? 1 : 0;
-            data->gEnableNormalMap = enableNormalMap ? 1 : 0;
-            data->gShadingMode = shadingMode;
-            data->gPad0 = 0;
-            // 패딩 초기화 (안전하게 0으로)
-            data->gPad1[0] = 0.0f;
-            data->gPad1[1] = 0.0f;
-            data->gNormalStrength = normalStrength;
-            data->gAmbientOcclusion = ambientOcclusion;
+            CBPerObject data{};
+            data.world = XMMatrixTranspose(world);
+            data.view = XMMatrixTranspose(view);
+            data.projection = XMMatrixTranspose(projection);
+            data.materialColor = color;
+            data.roughness = roughness;
+            data.metalness = metalness;
+            data.useTexture = useTexture ? 1 : 0;
+            data.enableNormalMap = enableNormalMap ? 1 : 0;
+            data.shadingMode = shadingMode;
+            data.pad0 = 0;
+            data.pad1[0] = 0.0f;
+            data.pad1[1] = 0.0f;
+            data.normalStrength = normalStrength;
+            data.ambientOcclusion = ambientOcclusion;
             const float globalIbl = std::clamp(m_lightingParameters.globalIBLIntensity, 0.0f, 1.0f);
-            data->gEnvDiffuseStrength = std::clamp(envDiffuseStrength * globalIbl, 0.0f, 1.0f);
-            data->gEnvSpecularStrength = std::clamp(envSpecularStrength * globalIbl, 0.0f, 1.0f);
-            data->gToonPbrCuts = toonPbrCuts;
-            data->gToonPbrLevels = toonPbrLevels;
-            data->gToonPbrAlphas = toonPbrAlphas;
-            data->gToonPbrRampIntensity = toonPbrRampIntensity;
-            data->gToonSelfShadowStrength = toonSelfShadowStrength;
-            data->gOutlineColor = outlineColor;
-            data->gOutlineWidth = outlineWidth;
+            data.envDiffuseStrength = std::clamp(envDiffuseStrength * globalIbl, 0.0f, 1.0f);
+            data.envSpecularStrength = std::clamp(envSpecularStrength * globalIbl, 0.0f, 1.0f);
+            data.toonPbrCuts = toonPbrCuts;
+            data.toonPbrLevels = toonPbrLevels;
+            data.toonPbrAlphas = toonPbrAlphas;
+            data.toonPbrRampIntensity = toonPbrRampIntensity;
+            data.toonSelfShadowStrength = toonSelfShadowStrength;
+            data.padOutline[0] = 0.0f;
+            data.padOutline[1] = 0.0f;
+            data.outlineColor = outlineColor;
+            data.outlineWidth = outlineWidth;
+            data.toonSelfCuts = toonSelfCuts;
+            data.toonSelfLevels = toonSelfLevels;
+            std::memcpy(mapped.pData, &data, sizeof(CBPerObject));
             m_context->Unmap(m_cbPerObject.Get(), 0);
         }
 

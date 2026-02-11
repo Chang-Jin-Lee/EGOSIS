@@ -55,6 +55,14 @@ namespace Alice {
         bool  toonPbrBlur{ false };    // 계단 사이를 부드럽게 블러 처리
         float toonPbrRampIntensity{ 0.0f }; // 0: 기존, 1: 가장 어두운 밴드 완화
         float toonSelfShadowStrength{ 1.0f }; // 0: 셀프 음영 최소화, 1: 기본 셀프 음영(PBR/ToonPBR/ToonPBREditable)
+        // ToonPBREditable 셀프 음영 전용 램프 파라미터
+        float toonSelfCut1{ 0.2f };
+        float toonSelfCut2{ 0.5f };
+        float toonSelfCut3{ 0.95f };
+        float toonSelfLevel1{ 0.1f };
+        float toonSelfLevel2{ 0.4f };
+        float toonSelfLevel3{ 0.7f };
+        float toonSelfBlurWidth{ 0.35f }; // 0: 하드 스텝, 1: 넓은 소프트 스텝
 
         Alice_Get_Set(color);
         Alice_Get_Set(alpha);
@@ -84,5 +92,12 @@ namespace Alice {
         Alice_Get_Set(toonPbrBlur);
         Alice_Get_Set(toonPbrRampIntensity);
         Alice_Get_Set(toonSelfShadowStrength);
+        Alice_Get_Set(toonSelfCut1);
+        Alice_Get_Set(toonSelfCut2);
+        Alice_Get_Set(toonSelfCut3);
+        Alice_Get_Set(toonSelfLevel1);
+        Alice_Get_Set(toonSelfLevel2);
+        Alice_Get_Set(toonSelfLevel3);
+        Alice_Get_Set(toonSelfBlurWidth);
     };
 }

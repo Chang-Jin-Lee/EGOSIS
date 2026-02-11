@@ -186,7 +186,14 @@ namespace Alice
             .property("toonPbrStrength", &MaterialComponent::toonPbrStrength)
             .property("toonPbrBlur", &MaterialComponent::toonPbrBlur)
             .property("toonPbrRampIntensity", &MaterialComponent::toonPbrRampIntensity)
-            .property("toonSelfShadowStrength", &MaterialComponent::toonSelfShadowStrength);
+            .property("toonSelfShadowStrength", &MaterialComponent::toonSelfShadowStrength)
+            .property("toonSelfCut1", &MaterialComponent::toonSelfCut1)
+            .property("toonSelfCut2", &MaterialComponent::toonSelfCut2)
+            .property("toonSelfCut3", &MaterialComponent::toonSelfCut3)
+            .property("toonSelfLevel1", &MaterialComponent::toonSelfLevel1)
+            .property("toonSelfLevel2", &MaterialComponent::toonSelfLevel2)
+            .property("toonSelfLevel3", &MaterialComponent::toonSelfLevel3)
+            .property("toonSelfBlurWidth", &MaterialComponent::toonSelfBlurWidth);
 
 
         // === DecalComponent 등록 ===

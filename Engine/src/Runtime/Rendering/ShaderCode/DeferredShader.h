@@ -40,6 +40,9 @@ cbuffer CBPerObject : register(b0)
     // 아웃라인 파라미터 (모든 쉐이딩 모드에서 사용 가능, 16바이트 경계에서 시작)
     float3   gOutlineColor;
     float    gOutlineWidth;
+
+    float4   gToonSelfCuts;
+    float4   gToonSelfLevels;
 };
 
 struct VSInput
@@ -119,6 +122,9 @@ cbuffer CBPerObject : register(b0)
     // 아웃라인 파라미터 (모든 쉐이딩 모드에서 사용 가능, 16바이트 경계에서 시작)
     float3   gOutlineColor;
     float    gOutlineWidth;
+
+    float4   gToonSelfCuts;
+    float4   gToonSelfLevels;
 };
 
 struct VSInput
@@ -207,6 +213,9 @@ cbuffer CBPerObject : register(b0)
     // 아웃라인 파라미터 (모든 쉐이딩 모드에서 사용 가능, 16바이트 경계에서 시작)
     float3   gOutlineColor;
     float    gOutlineWidth;
+
+    float4   gToonSelfCuts;
+    float4   gToonSelfLevels;
 };
 
 cbuffer CBBones : register(b2)
@@ -308,6 +317,9 @@ cbuffer CBPerObject : register(b0)
     // 아웃라인 파라미터 (모든 쉐이딩 모드에서 사용 가능, 16바이트 경계에서 시작)
     float3   gOutlineColor;
     float    gOutlineWidth;
+
+    float4   gToonSelfCuts;
+    float4   gToonSelfLevels;
 };
 
 struct VSInput
@@ -404,6 +416,9 @@ cbuffer CBPerObject : register(b0)
     // 아웃라인 파라미터 (모든 쉐이딩 모드에서 사용 가능, 16바이트 경계에서 시작)
     float3   gOutlineColor;
     float    gOutlineWidth;
+
+    float4   gToonSelfCuts;
+    float4   gToonSelfLevels;
 };
 
 struct VertexOut
@@ -424,6 +439,7 @@ struct GBufferOut
     float4 ToonParams      : SV_Target3;
     float4 ToonAlphas      : SV_Target4;
     float4 OutlineData     : SV_Target5;
+    float4 ToonSelfParams  : SV_Target6;
 };
 
 Texture2D  g_DiffuseMap : register(t0);
@@ -519,6 +535,10 @@ GBufferOut main(VertexOut pIn)
     }
     float packedShadowSelf = Pack2x8(gToonPbrAlphas.w, gToonSelfShadowStrength);
     gOut.ToonAlphas = float4(saturate(gToonPbrAlphas.xyz), packedShadowSelf);
+    float packedSelfCuts12 = Pack2x8(saturate(gToonSelfCuts.x), saturate(gToonSelfCuts.y));
+    float packedSelfCut3Level1 = Pack2x8(saturate(gToonSelfCuts.z), saturate(gToonSelfLevels.x));
+    float packedSelfLevels23 = Pack2x8(saturate(gToonSelfLevels.y), saturate(gToonSelfLevels.z));
+    gOut.ToonSelfParams = float4(packedSelfCuts12, packedSelfCut3Level1, packedSelfLevels23, saturate(gToonSelfLevels.w));
     // shadingMode + AO를 [0,1] 범위로 인코딩하여 저장
     gOut.BaseColor  = float4(baseColor, saturate(shadingEncoded));
     gOut.OutlineData = float4(saturate(gOutlineColor), max(gOutlineWidth, 0.0f));
@@ -678,7 +698,7 @@ float ToonLevel(float n)
     return 0.1f;
 }
 
-float ToonStepEditable(float n, float3 cuts, float3 levels, float3 alphas, float strength, float blur, float rampIntensity)
+float ToonStepEditable(float n, float3 cuts, float3 levels, float3 alphas, float strength, float blurWidth, float rampIntensity)
 {
     float c1 = saturate(cuts.x);
     float c2 = saturate(cuts.y);
@@ -698,9 +718,10 @@ float ToonStepEditable(float n, float3 cuts, float3 levels, float3 alphas, float
 
     float t = saturate(strength);
     float ramp = saturate(rampIntensity);
-    if (blur > 0.5f)
+    float blur = saturate(blurWidth);
+    if (blur > 1e-4f)
     {
-        float w = max(fwidth(n) * 2.0f, 0.02f);
+        float w = max(fwidth(n) * lerp(0.5f, 2.0f, blur), 0.001f + 0.02f * blur);
         float s1 = smoothstep(c1 - w, c1 + w, n);
         float s2 = smoothstep(c2 - w, c2 + w, n);
         float s3 = smoothstep(c3 - w, c3 + w, n);
@@ -732,6 +753,23 @@ float ToonStepEditable(float n, float3 cuts, float3 levels, float3 alphas, float
 float ApplySelfShadowNdotL(float shadedNdotL, float selfShadowStrength)
 {
     return lerp(1.0f, shadedNdotL, saturate(selfShadowStrength));
+}
+
+float ApplySelfShadowNdotLSeparated(
+    float shadedNdotL,
+    float ndotl,
+    bool toonEditable,
+    float3 selfCuts,
+    float3 selfLevels,
+    float selfBlurWidth,
+    float selfShadowStrength)
+{
+    float selfShadowBase = shadedNdotL;
+    if (toonEditable && ndotl > 0.0f)
+    {
+        selfShadowBase = ToonStepEditable(shadedNdotL, selfCuts, selfLevels, float3(1.0f, 1.0f, 1.0f), 1.0f, selfBlurWidth, 0.0f);
+    }
+    return ApplySelfShadowNdotL(selfShadowBase, selfShadowStrength);
 }
 
 float2 Unpack2x8(float v)
@@ -809,6 +847,7 @@ Texture2D<float> g_ShadowMap : register(t10);
 Texture2D g_DecalAlbedo : register(t11);
 Texture2DArray g_LocalShadow2DArray : register(t12);
 TextureCubeArray g_LocalShadowCubeArray : register(t13);
+Texture2D g_ToonSelfParams : register(t14);
 
 SamplerState g_Sam : register(s0);
 SamplerComparisonState g_ShadowSampler : register(s1);
@@ -1279,6 +1318,7 @@ float4 main(PS_INPUT_QUAD pIn) : SV_Target
     float4 baseColor = g_BaseColor.Sample(g_Sam, pIn.uv);
     float4 toonParams = g_ToonParams.Sample(g_Sam, pIn.uv);
     float4 toonAlphasSample = g_ToonAlphas.Sample(g_Sam, pIn.uv);
+    float4 toonSelfParamsSample = g_ToonSelfParams.Sample(g_Sam, pIn.uv);
     
     float depth = g_SceneDepth.Sample(g_Sam, pIn.uv);
 
@@ -1313,6 +1353,19 @@ float4 main(PS_INPUT_QUAD pIn) : SV_Target
     float toonBlur = (toonStrengthPacked >= 0.5f) ? 1.0f : 0.0f;
     float toonStrength = saturate((toonStrengthPacked - toonBlur * 0.5f) * 2.0f);
     float3 toonLevels = toonParams.gba;
+    float3 toonSelfCuts = float3(0.2f, 0.5f, 0.95f);
+    float3 toonSelfLevels = float3(0.1f, 0.4f, 0.7f);
+    float toonSelfBlurWidth = 0.35f;
+    // 방어 로직: ToonSelf RT가 비정상(미바인딩/클리어)일 때 기본값 유지
+    if (dot(abs(toonSelfParamsSample), float4(1.0f, 1.0f, 1.0f, 1.0f)) > 1e-6f)
+    {
+        float2 selfCuts12 = Unpack2x8(toonSelfParamsSample.x);
+        float2 selfCut3Level1 = Unpack2x8(toonSelfParamsSample.y);
+        float2 selfLevels23 = Unpack2x8(toonSelfParamsSample.z);
+        toonSelfCuts = float3(selfCuts12.x, selfCuts12.y, selfCut3Level1.x);
+        toonSelfLevels = float3(selfCut3Level1.y, selfLevels23.x, selfLevels23.y);
+        toonSelfBlurWidth = saturate(toonSelfParamsSample.w);
+    }
     float roughness = max(normalRoughness.w, 0.04f);
     
     // 월드 포지션 복원
@@ -1341,6 +1394,7 @@ float4 main(PS_INPUT_QUAD pIn) : SV_Target
         return float4(colorTexOnly, 1.0f);
     }
 
+)" R"(
     // 라이팅 벡터
     float3 L = normalize(-g_LightDirection.xyz);
     float3 V = normalize(g_EyePosW - posW);
@@ -1371,8 +1425,12 @@ float4 main(PS_INPUT_QUAD pIn) : SV_Target
     }
 
     float shadowVis = CalcShadowFactorDeferred(posW, g_ShadowMap, g_ShadowSampler);
-    const float kShadowStrengthMax = 12.0f;
-    float shadowStrength = saturate(g_ShadowStrength2) * kShadowStrengthMax;
+    if (toonEditable)
+    {
+        shadowVis = ToonStepEditable(shadowVis, toonSelfCuts, toonSelfLevels, float3(1.0f, 1.0f, 1.0f), 1.0f, toonSelfBlurWidth, 0.0f);
+    }
+    // shadowStrength는 lerp 보간계수로 사용되므로 0~1을 절대 넘기지 않게 유지
+    float shadowStrength = saturate(g_ShadowStrength2);
     shadowStrength *= saturate(materialShadowStrength);
     if (toonEditable)
     {
@@ -1380,8 +1438,16 @@ float4 main(PS_INPUT_QUAD pIn) : SV_Target
         const float kToonPbrShadowAtten = 0.35f;
         shadowStrength *= kToonPbrShadowAtten;
     }
-    shadowVis = saturate(lerp(1.0f, shadowVis, shadowStrength));
+    shadowStrength = saturate(shadowStrength);
+    shadowVis = lerp(1.0f, shadowVis, shadowStrength);
+    // ToonPBREditable은 완전 검정으로 떨어지지 않게 하여 블롯치/깨짐을 방지
+    if (toonEditable)
+    {
+        shadowVis = max(shadowVis, 0.35f);
+    }
+    shadowVis = saturate(shadowVis);
 
+)" R"(
     // [Legacy Lighting]
     if (!usePbr)
     {
@@ -1434,11 +1500,12 @@ float4 main(PS_INPUT_QUAD pIn) : SV_Target
         float3 ambient = g_DirLight_ambient.rgb * albedoLinear;
         float3 color = ambient + totalDiffuse * albedoLinear + totalSpecular * g_Material_specular.rgb;
         
-        // [아웃라인 합성]
-        color = lerp(color, outlineEdgeColor, outlineEdge);
-        return float4(color, 1.0f);
+    // [아웃라인 합성]
+    color = lerp(color, outlineEdgeColor, outlineEdge);
+    return float4(color, 1.0f);
     }
 
+)" R"(
     // [PBR Lighting]
     float3 albedoPBR = albedoLinear;
     roughness = max(roughness, 0.04f);
@@ -1456,7 +1523,7 @@ float4 main(PS_INPUT_QUAD pIn) : SV_Target
         if (toonPbr && ndotl > 0.0f) {
             shadedNdotL = toonEditable ? ToonStepEditable(ndotl, toonCuts, toonLevels, toonAlphas, toonStrength, toonBlur, toonRampIntensity) : ToonLevel(ndotl);
         }
-        float selfShadowNdotL = ApplySelfShadowNdotL(shadedNdotL, toonSelfShadowStrength);
+        float selfShadowNdotL = ApplySelfShadowNdotLSeparated(shadedNdotL, ndotl, toonEditable, toonSelfCuts, toonSelfLevels, toonSelfBlurWidth, toonSelfShadowStrength);
         float3 lit = EvaluatePBRLight(N, V, L, albedoPBR, metalness, roughness, lightColorDir, selfShadowNdotL);
         directLighting += lit * shadowVis * ao;
     }
@@ -1472,12 +1539,16 @@ float4 main(PS_INPUT_QUAD pIn) : SV_Target
         float3 lc = pl.color * pl.intensity * atten;
         float localShadow = (pl.shadowIndex >= 0) ? CalcLocalPointShadowFactor(posW, pl.position, pl.range, pl.shadowIndex, N, Lp) : 1.0f;
         localShadow = lerp(1.0f, localShadow, saturate(pl.shadowStrength));
+        if (toonEditable)
+        {
+            localShadow = ToonStepEditable(localShadow, toonSelfCuts, toonSelfLevels, float3(1.0f, 1.0f, 1.0f), 1.0f, toonSelfBlurWidth, 0.0f);
+        }
         float ndotl = max(dot(N, Lp), 0.0f);
         float shadedNdotL = ndotl;
         if (toonPbr && ndotl > 0.0f) {
             shadedNdotL = toonEditable ? ToonStepEditable(ndotl, toonCuts, toonLevels, toonAlphas, toonStrength, toonBlur, toonRampIntensity) : ToonLevel(ndotl);
         }
-        float selfShadowNdotL = (ndotl > 0.0f) ? ApplySelfShadowNdotL(shadedNdotL, toonSelfShadowStrength) : 0.0f;
+        float selfShadowNdotL = (ndotl > 0.0f) ? ApplySelfShadowNdotLSeparated(shadedNdotL, ndotl, toonEditable, toonSelfCuts, toonSelfLevels, toonSelfBlurWidth, toonSelfShadowStrength) : 0.0f;
         float3 lit = EvaluatePBRLight(N, V, Lp, albedoPBR, metalness, roughness, lc, selfShadowNdotL);
         extraLighting += lit * ao * localShadow;
     }
@@ -1492,12 +1563,16 @@ float4 main(PS_INPUT_QUAD pIn) : SV_Target
         float3 lc = sl.color * sl.intensity * atten * spot;
         float localShadow = (sl.shadowIndex >= 0) ? CalcLocalSpotRectShadowFactor(posW, sl.shadowIndex) : 1.0f;
         localShadow = lerp(1.0f, localShadow, saturate(sl.shadowStrength));
+        if (toonEditable)
+        {
+            localShadow = ToonStepEditable(localShadow, toonSelfCuts, toonSelfLevels, float3(1.0f, 1.0f, 1.0f), 1.0f, toonSelfBlurWidth, 0.0f);
+        }
         float ndotl = max(dot(N, Ls), 0.0f);
         float shadedNdotL = ndotl;
         if (toonPbr && ndotl > 0.0f) {
             shadedNdotL = toonEditable ? ToonStepEditable(ndotl, toonCuts, toonLevels, toonAlphas, toonStrength, toonBlur, toonRampIntensity) : ToonLevel(ndotl);
         }
-        float selfShadowNdotL = (ndotl > 0.0f) ? ApplySelfShadowNdotL(shadedNdotL, toonSelfShadowStrength) : 0.0f;
+        float selfShadowNdotL = (ndotl > 0.0f) ? ApplySelfShadowNdotLSeparated(shadedNdotL, ndotl, toonEditable, toonSelfCuts, toonSelfLevels, toonSelfBlurWidth, toonSelfShadowStrength) : 0.0f;
         float3 lit = EvaluatePBRLight(N, V, Ls, albedoPBR, metalness, roughness, lc, selfShadowNdotL);
         extraLighting += lit * ao * localShadow;
     }
@@ -1513,16 +1588,21 @@ float4 main(PS_INPUT_QUAD pIn) : SV_Target
         float3 lc = rl.color * rl.intensity * atten * facing * areaScale;
         float localShadow = (rl.shadowIndex >= 0) ? CalcLocalSpotRectShadowFactor(posW, rl.shadowIndex) : 1.0f;
         localShadow = lerp(1.0f, localShadow, saturate(rl.shadowStrength));
+        if (toonEditable)
+        {
+            localShadow = ToonStepEditable(localShadow, toonSelfCuts, toonSelfLevels, float3(1.0f, 1.0f, 1.0f), 1.0f, toonSelfBlurWidth, 0.0f);
+        }
         float ndotl = max(dot(N, Lr), 0.0f);
         float shadedNdotL = ndotl;
         if (toonPbr && ndotl > 0.0f) {
             shadedNdotL = toonEditable ? ToonStepEditable(ndotl, toonCuts, toonLevels, toonAlphas, toonStrength, toonBlur, toonRampIntensity) : ToonLevel(ndotl);
         }
-        float selfShadowNdotL = (ndotl > 0.0f) ? ApplySelfShadowNdotL(shadedNdotL, toonSelfShadowStrength) : 0.0f;
+        float selfShadowNdotL = (ndotl > 0.0f) ? ApplySelfShadowNdotLSeparated(shadedNdotL, ndotl, toonEditable, toonSelfCuts, toonSelfLevels, toonSelfBlurWidth, toonSelfShadowStrength) : 0.0f;
         float3 lit = EvaluatePBRLight(N, V, Lr, albedoPBR, metalness, roughness, lc, selfShadowNdotL);
         extraLighting += lit * ao * localShadow;
     }
 
+)" R"(
     //// 임시 느낌
     // Indirect Light (IBL)
     //  Diffuse 계산 시 거칠기(Roughness)를 고려한 Fresnel 사용
@@ -1573,6 +1653,7 @@ float4 main(PS_INPUT_QUAD pIn) : SV_Target
     // 최종 IBL 합산 (Diffuse + Specular) * Ambient Occlusion
     float3 iblColor = (diffuseIBL * shadowIBLDiffuse + specularIBL * shadowIBLSpecular) * ao;
     
+)" R"(
     // -----------------------------------------------------------------------
 
     // 최종 색상 계산

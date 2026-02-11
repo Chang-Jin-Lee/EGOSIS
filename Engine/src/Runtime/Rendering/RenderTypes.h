@@ -246,6 +246,8 @@ namespace Alice
         DirectX::XMFLOAT4 toonPbrAlphas { 1.0f, 1.0f, 1.0f, 1.0f };  // level1~3 alpha, w: shadowStrength
         float             toonPbrRampIntensity { 0.0f };            // 0: 기존, 1: 가장 어두운 밴드 완화
         float             toonSelfShadowStrength { 1.0f };          // 0: 셀프 음영 최소화, 1: 기본 셀프 음영(PBR/ToonPBR/ToonPBREditable)
+        DirectX::XMFLOAT4 toonSelfCuts { 0.2f, 0.5f, 0.95f, 0.0f };   // x,y,z: cut1~3
+        DirectX::XMFLOAT4 toonSelfLevels { 0.1f, 0.4f, 0.7f, 0.35f }; // x,y,z: level1~3, w: blurWidth
 
         // 선택적인 알베도 텍스처 경로 (.alice 단일 포맷 또는 원본 이미지 경로)
         std::string       albedoTexturePath;
@@ -456,11 +458,17 @@ namespace Alice
         DirectX::XMFLOAT4 toonPbrAlphas;  // Offset: 288 -> 304 (alpha1~3, w: shadowStrength)
         float             toonPbrRampIntensity; // Offset: 304 -> 308
         float             toonSelfShadowStrength; // Offset: 308 -> 312 (PBR/ToonPBR/ToonPBREditable 셀프 음영 강도)
+        float             padOutline[2];  // Offset: 312 -> 320 (HLSL gPadOutline와 정합)
         
         // 아웃라인 파라미터 (모든 쉐이딩 모드에서 사용 가능, 16바이트 경계에서 시작)
-        DirectX::XMFLOAT3 outlineColor;  // 아웃라인 색상 (Offset: 312 -> 324)
-        float             outlineWidth;  // 아웃라인 두께 (월드 단위) (Offset: 324 -> 328)
+        DirectX::XMFLOAT3 outlineColor;  // 아웃라인 색상 (Offset: 320 -> 332)
+        float             outlineWidth;  // 아웃라인 두께 (월드 단위) (Offset: 332 -> 336)
+        DirectX::XMFLOAT4 toonSelfCuts;   // x,y,z: cut1~3
+        DirectX::XMFLOAT4 toonSelfLevels; // x,y,z: level1~3, w: blurWidth
 	};
+
+    static_assert((sizeof(CBPerObject) % 16) == 0, "CBPerObject must be 16-byte aligned.");
+    static_assert(sizeof(CBPerObject) == 368, "CBPerObject size mismatch with deferred shader cbuffer.");
 
 	/// 단순 Directional Light 2개와 재질 파라미터를 담는 구조체입니다.
 	struct LightData

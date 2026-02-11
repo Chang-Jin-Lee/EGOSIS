@@ -70,6 +70,13 @@ namespace Alice
         outMaterial.toonPbrLevel3Alpha = std::clamp(outMaterial.toonPbrLevel3Alpha, 0.0f, 1.0f);
         outMaterial.toonPbrRampIntensity = std::clamp(outMaterial.toonPbrRampIntensity, 0.0f, 1.0f);
         outMaterial.toonSelfShadowStrength = std::clamp(outMaterial.toonSelfShadowStrength, 0.0f, 1.0f);
+        outMaterial.toonSelfCut1 = std::clamp(outMaterial.toonSelfCut1, 0.0f, 1.0f);
+        outMaterial.toonSelfCut2 = std::clamp(outMaterial.toonSelfCut2, 0.0f, 1.0f);
+        outMaterial.toonSelfCut3 = std::clamp(outMaterial.toonSelfCut3, 0.0f, 1.0f);
+        outMaterial.toonSelfLevel1 = std::clamp(outMaterial.toonSelfLevel1, 0.0f, 1.0f);
+        outMaterial.toonSelfLevel2 = std::clamp(outMaterial.toonSelfLevel2, 0.0f, 1.0f);
+        outMaterial.toonSelfLevel3 = std::clamp(outMaterial.toonSelfLevel3, 0.0f, 1.0f);
+        outMaterial.toonSelfBlurWidth = std::clamp(outMaterial.toonSelfBlurWidth, 0.0f, 1.0f);
         // 노말맵 강도는 0.0f 이상으로 제한
         outMaterial.normalStrength = std::max(outMaterial.normalStrength, 0.0f);
         // 아웃라인 두께는 음수 방지
@@ -108,6 +115,13 @@ namespace Alice
         copy.toonPbrLevel3Alpha = std::clamp(copy.toonPbrLevel3Alpha, 0.0f, 1.0f);
         copy.toonPbrRampIntensity = std::clamp(copy.toonPbrRampIntensity, 0.0f, 1.0f);
         copy.toonSelfShadowStrength = std::clamp(copy.toonSelfShadowStrength, 0.0f, 1.0f);
+        copy.toonSelfCut1 = std::clamp(copy.toonSelfCut1, 0.0f, 1.0f);
+        copy.toonSelfCut2 = std::clamp(copy.toonSelfCut2, 0.0f, 1.0f);
+        copy.toonSelfCut3 = std::clamp(copy.toonSelfCut3, 0.0f, 1.0f);
+        copy.toonSelfLevel1 = std::clamp(copy.toonSelfLevel1, 0.0f, 1.0f);
+        copy.toonSelfLevel2 = std::clamp(copy.toonSelfLevel2, 0.0f, 1.0f);
+        copy.toonSelfLevel3 = std::clamp(copy.toonSelfLevel3, 0.0f, 1.0f);
+        copy.toonSelfBlurWidth = std::clamp(copy.toonSelfBlurWidth, 0.0f, 1.0f);
         copy.normalStrength = std::max(copy.normalStrength, 0.0f);
         copy.outlineWidth = std::max(copy.outlineWidth, 0.0f);
 
