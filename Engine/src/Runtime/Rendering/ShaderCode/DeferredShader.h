@@ -1510,6 +1510,11 @@ float4 main(PS_INPUT_QUAD pIn) : SV_Target
     float3 prefilteredColor = g_IBL_Specular.SampleLevel(g_Sam, Renv, roughness * kMaxSpecularMip).rgb;
     float2 specBRDF = g_IBL_BRDF_LUT.Sample(g_SamplerLinear, float2(NdotV, roughness)).rg;
     float3 specularIBL = prefilteredColor * (F0 * specBRDF.x + specBRDF.y);
+    float specularSuppressor = saturate(1.0f - roughness * roughness);
+    float specularIBLScale = lerp(specularSuppressor, 1.0f, metalness);
+    float horizonOcclusion = saturate(1.0f + dot(Renv, N));
+    horizonOcclusion *= horizonOcclusion;
+    specularIBL *= specularIBLScale * horizonOcclusion;
 
     diffuseIBL *= envDiffuseStrength;
     specularIBL *= envSpecularStrength;
@@ -2020,6 +2025,11 @@ float4 main(PSIn pIn) : SV_Target
     float3 prefilteredColor = g_IBL_Specular.SampleLevel(g_Sam, Renv, roughness * kMaxSpecularMip).rgb;
     float2 specBRDF = g_IBL_BRDF_LUT.Sample(g_Sam, float2(NdotV, roughness)).rg;
     float3 specularIBL = prefilteredColor * (F0 * specBRDF.x + specBRDF.y);
+    float specularSuppressor = saturate(1.0f - roughness * roughness);
+    float specularIBLScale = lerp(specularSuppressor, 1.0f, metalness);
+    float horizonOcclusion = saturate(1.0f + dot(Renv, N));
+    horizonOcclusion *= horizonOcclusion;
+    specularIBL *= specularIBLScale * horizonOcclusion;
 
     diffuseIBL *= gEnvDiffuseStrength;
     specularIBL *= gEnvSpecularStrength;

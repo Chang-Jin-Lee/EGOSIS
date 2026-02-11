@@ -4,7 +4,8 @@
 namespace Alice::CullingTuning
 {
     // Camera frustum widening for conservative culling.
-    inline constexpr float FrustumFovScale = 1.3f;
+    // Keep conservative culling but reduce overdraw from overly wide frustum.
+    inline constexpr float FrustumFovScale = 1.2f;
     inline constexpr float FrustumFovClampEpsilon = 0.02f;
 
     // Static cube-mesh local bounds: [-Extent, +Extent].

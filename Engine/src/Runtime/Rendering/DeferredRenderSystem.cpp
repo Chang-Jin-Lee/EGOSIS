@@ -5264,42 +5264,9 @@ namespace Alice
 
     DirectX::XMMATRIX DeferredRenderSystem::BuildWorldMatrix(const World& world, EntityId entityId, const TransformComponent& transform) const
     {
-        // c.txt 참조: 부모부터 루트까지 로컬 행렬을 스택에 쌓고, 루트에서 자식으로 내려가면서 행렬 곱하기
-        std::vector<XMMATRIX> matrixStack;
-        EntityId currentId = entityId;
-        
-        // 부모부터 루트까지 로컬 행렬을 스택에 쌓음
-        while (currentId != InvalidEntityId)
-        {
-            const TransformComponent* t = world.GetComponent<TransformComponent>(currentId);
-            if (t)
-            {
-                XMVECTOR scale = XMLoadFloat3(&t->scale);
-                XMVECTOR rotation = XMLoadFloat3(&t->rotation);
-                XMVECTOR translation = XMLoadFloat3(&t->position);
-                
-                // 로컬 행렬: S * R * T 순서 (DirectXMath 행벡터 컨벤션)
-                XMMATRIX localMatrix = XMMatrixScalingFromVector(scale) *
-                    XMMatrixRotationRollPitchYawFromVector(rotation) *
-                    XMMatrixTranslationFromVector(translation);
-                
-                matrixStack.push_back(localMatrix);
-                currentId = t->parent;
-            }
-            else
-            {
-                break;
-            }
-        }
-        
-        // 행벡터 컨벤션: child * parent * ... * root 형태로 곱하기 (정순)
-        XMMATRIX worldMatrix = XMMatrixIdentity();
-        for (const auto& m : matrixStack)  // child -> parent -> root 순서
-        {
-            worldMatrix = worldMatrix * m;  // I * child * parent * ... * root
-        }
-        
-        return worldMatrix;
+        (void)transform;
+        // ECS Transform 캐시(dirty 갱신 반영)를 사용해 부모 체인 재순회/임시 할당 비용을 줄인다.
+        return world.ComputeWorldMatrix(entityId);
     }
 
     ID3D11ShaderResourceView* DeferredRenderSystem::GetOrCreateTexture(const std::string& path)
@@ -5827,7 +5794,10 @@ namespace Alice
 
 	void DeferredRenderSystem::RenderBloomPass(ID3D11ShaderResourceView* sourceSRV, ID3D11RenderTargetView* hdrCompositeRTV, const D3D11_VIEWPORT& viewport)
 	{
-		if (!m_bloomSettings.enabled || !sourceSRV || !hdrCompositeRTV) return;
+		const bool bloomEffectivelyEnabled =
+			m_bloomSettings.enabled &&
+			(m_bloomSettings.intensity > 1e-4f || m_bloomSettings.gaussianIntensity > 1e-4f);
+		if (!bloomEffectivelyEnabled || !sourceSRV || !hdrCompositeRTV) return;
 		if (!m_bloomBrightPassPS || !m_bloomDownsamplePS || !m_bloomBlurPassPS_H || !m_bloomBlurPassPS_V || !m_bloomUpsamplePS || !m_bloomCompositePS) return;
 
 		// 상태 설정
@@ -6162,7 +6132,10 @@ namespace Alice
         ID3D11ShaderResourceView* toneMapInputSRV = m_sceneColorSRV.Get(); // 기본값: 씬 컬러
 
         // Bloom ON/OFF에 따른 흐름 분기
-        if (m_bloomSettings.enabled)
+        const bool bloomEffectivelyEnabled =
+            m_bloomSettings.enabled &&
+            (m_bloomSettings.intensity > 1e-4f || m_bloomSettings.gaussianIntensity > 1e-4f);
+        if (bloomEffectivelyEnabled)
         {
             // Bloom ON: Bloom 패스 실행 → HDR 합성 RT에 저장 → ToneMapping 입력으로 사용
             RenderBloomPass(m_sceneColorSRV.Get(), m_postBloomRTV.Get(), viewport);
